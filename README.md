@@ -100,6 +100,17 @@ while True:
         print(f"Gaze: ({x:.0f}, {y:.0f})")
 ```
 
+### Per-eye calibration
+
+`GazeEstimator` can optionally focus on a single eye. Pass `eye="left"` or
+`eye="right"` when constructing the estimator to calibrate and predict using
+only that eye.
+
+```python
+left_estimator = GazeEstimator(eye="left")
+run_9_point_calibration(left_estimator)
+```
+
 ## More
 
 If you find EyeTrax useful, consider starring the repo or contributing. If you use it in your research, please cite it. The project is available under the MIT license.

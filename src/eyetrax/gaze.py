@@ -19,7 +19,27 @@ class GazeEstimator:
         ear_history_len: int = 50,
         blink_threshold_ratio: float = 0.8,
         min_history: int = 15,
+        eye: str | None = None,
     ):
+        """Initialize estimator.
+
+        Parameters
+        ----------
+        model_name:
+            Regressor used for gaze prediction.
+        model_kwargs:
+            Optional model initialization arguments.
+        ear_history_len:
+            Number of frames to keep for blink detection smoothing.
+        blink_threshold_ratio:
+            Ratio used to determine blink threshold.
+        min_history:
+            Minimum history required before blink threshold adapts.
+        eye:
+            If ``"left"`` or ``"right"``, restrict feature extraction to a
+            single eye so that calibration can be performed per-eye. ``None``
+            (default) uses landmarks from both eyes.
+        """
         self.face_mesh = mp.solutions.face_mesh.FaceMesh(
             static_image_mode=False,
             max_num_faces=1,
@@ -31,6 +51,7 @@ class GazeEstimator:
         self._ear_history = deque(maxlen=ear_history_len)
         self._blink_ratio = blink_threshold_ratio
         self._min_history = min_history
+        self._eye = eye if eye in {"left", "right"} else None
 
     def extract_features(self, image):
         """
@@ -72,7 +93,12 @@ class GazeEstimator:
         if inter_eye_dist > 1e-7:
             rotated_points /= inter_eye_dist
 
-        subset_indices = LEFT_EYE_INDICES + RIGHT_EYE_INDICES + MUTUAL_INDICES
+        if self._eye == "left":
+            subset_indices = LEFT_EYE_INDICES + MUTUAL_INDICES
+        elif self._eye == "right":
+            subset_indices = RIGHT_EYE_INDICES + MUTUAL_INDICES
+        else:
+            subset_indices = LEFT_EYE_INDICES + RIGHT_EYE_INDICES + MUTUAL_INDICES
         eye_landmarks = rotated_points[subset_indices]
         features = eye_landmarks.flatten()
 
@@ -94,13 +120,18 @@ class GazeEstimator:
 
         left_eye_width = np.linalg.norm(left_eye_outer - left_eye_inner)
         left_eye_height = np.linalg.norm(left_eye_top - left_eye_bottom)
-        left_EAR = left_eye_height / (left_eye_width + 1e-9)
 
         right_eye_width = np.linalg.norm(right_eye_outer - right_eye_inner)
         right_eye_height = np.linalg.norm(right_eye_top - right_eye_bottom)
-        right_EAR = right_eye_height / (right_eye_width + 1e-9)
 
-        EAR = (left_EAR + right_EAR) / 2
+        if self._eye == "left":
+            EAR = left_eye_height / (left_eye_width + 1e-9)
+        elif self._eye == "right":
+            EAR = right_eye_height / (right_eye_width + 1e-9)
+        else:
+            left_EAR = left_eye_height / (left_eye_width + 1e-9)
+            right_EAR = right_eye_height / (right_eye_width + 1e-9)
+            EAR = (left_EAR + right_EAR) / 2
 
         self._ear_history.append(EAR)
         if len(self._ear_history) >= self._min_history:
