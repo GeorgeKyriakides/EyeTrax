@@ -12,6 +12,7 @@ Extract facial features, train a model and predict gaze with an easy‑to‑use 
 
 ## Features
 
+ 
 - Real‑time gaze estimation
 - Multiple calibration workflows
 - Optional filtering (Kalman / KDE)
